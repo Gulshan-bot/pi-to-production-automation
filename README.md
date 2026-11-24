@@ -1,4 +1,4 @@
-# Order to Delivery: one PI in, every sheet updated (Google Apps Script)
+# PI to Production Automation: one PI in, every sheet updated (Google Apps Script)
 
 **Confirm one Proforma Invoice (PI) and the script does the rest: the customer PDF, the plant's production order, and one row per item in the right production sheet (PC to the PC tab, PP to the PP tab, and so on).**
 

@@ -5,6 +5,7 @@
 - Repositioned around the production sheet split: one confirmation now routes every PI item to the right product tab (PC to PC, PP to PP, and so on), so nobody distributes orders by hand and machine operators work straight from their own sheet.
 - README rewritten: what one click creates, who saves time, where each item goes, setup including the planning sheet, and how to adapt the tabs and column layouts.
 - Code comments updated to match. No change to the script logic.
+- Project renamed from `order-to-delivery-pi-splitter` to `pi-to-production-automation`, because it now does more than split the PI: it also plans production. The menu in Google Sheets is still called "Order to Delivery".
 
 ## 1.1.0 (2026-11-24)
 
