@@ -1,0 +1,12 @@
+# Changelog
+
+## 1.1.0 (2026-11-24)
+
+- New: optional planning sheet split (`PLAN.ENABLED`, off by default). One row per PI item goes to its product tab, rows the plant has not started on are replaced when a PI is confirmed again, revisions and possible duplicates are flagged, and items that match no tab are kept in `Unsorted PI items`.
+- New menu items (shown when the split is on): check planning split, send this PI to planning sheet, remove a PI from the planning sheet.
+- The confirmation dialog warns when the PI number is not in a form the planning split accepts.
+- Fix: the backfill's clean-up of leftover temporary tabs now matches the temporary tab name (`PI_<timestamp>`) that the plant copy actually uses.
+
+## 1.0.0 (2026-11-16)
+
+- First public release: one-click PI split, customer IDs, revisions, PI register, plant mirror of the FMS tab, leak tests and backfill.

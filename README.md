@@ -7,7 +7,7 @@ Turn one Proforma Invoice (PI) into **two documents with a single click**:
 | **Full PI (PDF)** | Sales, CRM, accounts | Everything: customer name, address, GST, rates, payment terms |
 | **Production order (PDF)** | Plant / production team | Items and quantities only. Customer name is replaced by a customer ID. No address, GST, rates or payment terms |
 
-It also writes both orders to the right tracking sheets and keeps a **view-only mirror** of your order tracking (FMS) sheet for the plant team.
+It also writes both orders to the right tracking sheets and keeps a **view-only mirror** of your order tracking (FMS) sheet for the plant team. Optionally, it sends every item line of the PI to the right product tab of a **planning sheet** (see [Planning sheet split](#planning-sheet-split-optional)).
 
 Making the plant copy by hand took 10 to 15 minutes per order, and one missed cell could leak commercial details. This script does it in about 30 seconds and can test itself for leaks.
 
@@ -34,6 +34,8 @@ PI tab (full details)
         +--> Main order-to-delivery sheet   (commercial row)
         +--> Plant sheet                    (no commercial details)
         +--> PI Register tab                (who confirmed, when, revision)
+        |
+        +--> Planning sheet (optional)      one row per item, in its product tab, status "New"
 
 Every 10 minutes (time trigger)
    FMS tab (main sheet)  --->  read-only mirror in the plant sheet
@@ -52,6 +54,7 @@ Every 10 minutes (time trigger)
 - **Leak tests** that scan the plant copies and the mirror for customer names, foreign GST numbers, amounts, payment terms and full-PI links.
 - **Backfill** for old orders that have no production order yet.
 - **Locking**, so two people confirming at the same time cannot overwrite each other.
+- **Optional planning split.** One row per PI item goes to its product tab of a planning sheet with status `New`. Confirming a PI again replaces rows the plant has not started on, never touches rows already in work, and flags possible duplicate orders.
 
 ## What gets removed from the plant copy
 
@@ -98,8 +101,10 @@ Your own GSTIN (`OWN_GST`) is allowed to stay.
 | `REGISTER_TAB` | Name of the register tab (created automatically) |
 | `CODE_PREFIX` | Prefix for new customer IDs |
 | `OWN_GST` | Your own GSTIN, so it is not flagged as a leak. Leave `''` if you do not need it |
+| `PLAN.ENABLED` | `false` (default) = no planning split. `true` = send every confirmed PI to the planning sheet |
+| `PLAN.ID` | ID of the planning spreadsheet. Only needed when `PLAN.ENABLED` is `true` |
 
-Also check the `MIRROR` block further down: `SRC_TAB`, `HEAD_ROWS`, `PI_COL`, `NAME_COL` and `LINK_COL` must match your FMS tab. And set `BACKFILL.FY` and `BACKFILL.FROM` to match your PI numbering if you use the backfill.
+The planning split is off by default and needs more adapting, see [Planning sheet split](#planning-sheet-split-optional). Also check the `MIRROR` block further down: `SRC_TAB`, `HEAD_ROWS`, `PI_COL`, `NAME_COL` and `LINK_COL` must match your FMS tab. And set `BACKFILL.FY` and `BACKFILL.FROM` to match your PI numbering if you use the backfill.
 
 ### 4. First run
 
@@ -110,7 +115,7 @@ Also check the `MIRROR` block further down: `SRC_TAB`, `HEAD_ROWS`, `PI_COL`, `N
 
 ### 5. Test before go-live
 
-Use **copies** of your main and plant sheets first.
+Use **copies** of your main and plant sheets first (and a copy of your planning sheet if you turn the planning split on).
 
 | Function | What it does | Writes anything? |
 |---|---|---|
@@ -131,7 +136,7 @@ Results go to **Executions / Logs** in the Apps Script editor.
 3. Enter sales person and CRM name, set the three YES/NO flags, click the button.
 4. After about 30 seconds you get links to both PDFs. The plant sheet shows the order within 10 minutes.
 
-If the PI was already confirmed, the dialog warns you and saves it as a revision.
+If the PI was already confirmed, the dialog warns you and saves it as a revision. With the planning split on, the dialog also warns when the PI number is not in a form the planning sheet accepts.
 
 ## Column maps
 
@@ -159,6 +164,39 @@ If the PI was already confirmed, the dialog warns you and saves it as a revision
 
 If your sheets use different columns, change the `setValues` / `getRange` calls in `confirmAndSplit`.
 
+## Planning sheet split (optional)
+
+Off by default. Set `PLAN.ENABLED = true` and `PLAN.ID` to turn it on.
+
+**What it does.** After the PDFs and order rows are written, the script reads every item line of the PI and adds one row per item to the matching product tab of a planning spreadsheet, with status `New`. Only the customer ID is written, never the name, address, GST, rates or terms. If this step fails, the confirmation still stands and the dialog tells you to retry from the menu.
+
+**This module is an example.** It comes from a plastic-sheet plant, so the tabs, routing rules, column layouts and weight formulas describe one specific planning sheet. Expect to adapt it:
+
+| What | Where | Change it to |
+|---|---|---|
+| Product tabs and where their columns sit | `PLAN.TABS` | Your tab names. `first` = first data row, `orderCol` = column with the PI number, `statusCol` = status column, `kind` = row layout |
+| Which item goes to which tab | `routeItem_` | Your own match rules on the item description |
+| What each row contains | `planRow_` | Your own column order and formulas, one block per `kind` (`roll`, `mw`, `prof`, `base`) |
+| Weight per item | `itemKg_` | Your own formula |
+| Item columns read from the PI | `readItems_` | Your own column labels (`Colour`, `Width`, `Length`, ...) |
+| PI number format that is accepted | `planPiOk_` | Your own numbering pattern |
+
+**Rules it follows**
+
+- **One PI, one set of rows.** Confirming the same PI again replaces the rows this script wrote earlier for it, as long as the plant has not started on them (status still starts with `New` and the customer column holds a customer ID).
+- **Work in progress is never touched.** Rows the plant typed by hand, or that are already Pending / Running / Complete, stay as they are. Items the plant already has (same size and quantity) are not added again. If the revised PI has other items, only those are added, with status `New - REVISED, check old rows`.
+- **Possible duplicates are flagged.** On tabs that have a customer column, the same customer ID with the same items under a different PI number gets status `New - POSSIBLE DUPLICATE` and a cell note, so the plant can hold the order.
+- **Nothing is dropped.** Items that match no product tab go to a tab called `Unsorted PI items`.
+- **Quotations are skipped.** Only a proper PI number goes to the planning sheet (see `planPiOk_`).
+
+**Menu items** (shown only when the split is on)
+
+| Item | What it does |
+|---|---|
+| Check planning split (no changes) | Shows which tab each item of the open PI would go to |
+| Send this PI to planning sheet | Retries the step for an already confirmed PI |
+| Remove a PI from the planning sheet | Deletes the not-started rows of a wrong, cancelled or duplicate PI, and lists any rows already in work so you can tell the plant |
+
 ## Limitations
 
 - **This is a redaction helper, not a security boundary.** The plant team must only have access to the plant spreadsheet and the plant PDF folder, never to the PI workbook, the main sheet or the full-PI folder.
@@ -166,6 +204,8 @@ If your sheets use different columns, change the `setValues` / `getRange` calls 
 - A PI tab must contain these labels: `Customer Name`, `PI No`, `SL.`, `Basic Price`, `Order Quantity`, `Total Qty` (or a `Total Amount` row), and `Total Amount`. `Date :`, `Address`, `Other Ref` and `Payment` are used if present.
 - PDF export uses an A4 landscape, fit-to-width layout. Change the URL parameters in `exportPdf_` for other page setups.
 - The dispatch date is left blank on purpose: in this workflow the plant team fills it in.
+- The planning split writes formulas into fixed columns of your planning tabs. If your layout differs and you do not adapt `PLAN.TABS` and `planRow_`, it writes into the wrong columns. Test on a copy of the planning sheet first.
+- Planning rows are matched to a PI by its number, so keep PI numbers unique and in one format.
 - Apps Script limits apply (execution time, daily URL fetch and Drive quotas). The backfill stops after about 4.5 minutes, so run it again until nothing is left.
 
 ## Customising
@@ -174,6 +214,7 @@ If your sheets use different columns, change the `setValues` / `getRange` calls 
 - **Different things to hide:** edit `makePlantCopy_`.
 - **Different ID format:** change `CODE_PREFIX` or `customerCode_`.
 - **Different sheet columns:** see the column maps above.
+- **Planning split:** see the table in [Planning sheet split](#planning-sheet-split-optional).
 
 ## Contributing
 
