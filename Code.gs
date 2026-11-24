@@ -7,8 +7,9 @@
  *   - full PI PDF + a row in the main order-to-delivery sheet (commercial details)
  *   - production order PDF + a row in the plant sheet
  *     (no customer name / address / GST / rates / payment terms)
- *   - optional: one row per PI item in its product tab of a planning sheet
- *     (see PLAN further down, off by default)
+ *   - one row per PI item in its product tab of the planning (production) sheet, so every item
+ *     reaches the right machine operators with no manual distribution
+ *     (switch on with PLAN.ENABLED, see PLAN further down)
  *
  * Setup: fill in CFG below, run setupPlantMirror() once, then add a time-driven
  * trigger for syncPlantMirror() (every 10 minutes). See README.md.
@@ -325,12 +326,13 @@ function confirmAndSplit(f) {
 }
 
 
-/* ---------- planning sheet split (optional, OFF by default: set PLAN.ENABLED = true) ----------
+/* ---------- production sheet split (switch on with PLAN.ENABLED = true) ----------
  * Runs as the last step of a confirmation. Each item line of the PI goes to its product tab
- * of a planning spreadsheet with status "New". Only the customer ID is written:
+ * of the planning (production) spreadsheet with status "New", so the machine operators can start
+ * from their own sheet and nobody has to distribute the items by hand. Only the customer ID is written:
  * no name, address, GST, rates or terms. If this step fails the confirmation itself still stands.
  *
- * THIS PART IS AN EXAMPLE from a plastic-sheet plant. The product tabs (PLAN.TABS), the routing
+ * It ships with the tabs of a plastic-sheet plant as the example. The product tabs (PLAN.TABS), the routing
  * rules (routeItem_), the column layouts (planRow_) and the weight formulas (itemKg_) describe
  * one specific planning sheet. Change them to match yours, or leave PLAN.ENABLED = false.
  */
